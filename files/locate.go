@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/amp-labs/cli/openapi"
 )
@@ -17,6 +18,11 @@ var ErrManifestNotFound = errors.New("no manifest found")
 
 // FindManifest resolves a user-supplied path to a manifest file. The path may be
 // the manifest itself or a directory containing one.
+//
+// An explicitly named file must still be called amp.yaml or amp.yml, matching
+// what `amp deploy` accepts in getZipDir. Accepting arbitrary file names here
+// would mean `amp validate` passed on a path that `amp deploy` then rejected,
+// which defeats the point of the command.
 func FindManifest(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -24,6 +30,11 @@ func FindManifest(path string) (string, error) {
 	}
 
 	if !info.IsDir() {
+		if !slices.Contains(ManifestNames, filepath.Base(path)) {
+			return "", fmt.Errorf("%w: %s is not a directory nor one of %v",
+				ErrManifestNotFound, path, ManifestNames)
+		}
+
 		return path, nil
 	}
 

@@ -48,10 +48,19 @@ func TestFindManifest(t *testing.T) {
 			want:   "amp.yaml",
 		},
 		{
-			name:   "an explicit file path is used as given",
-			create: []string{"custom.yaml"},
-			lookup: "custom.yaml",
-			want:   "custom.yaml",
+			name:   "an explicitly named amp.yaml is used as given",
+			create: []string{"amp.yaml"},
+			lookup: "amp.yaml",
+			want:   "amp.yaml",
+		},
+		{
+			// amp deploy's getZipDir rejects explicit files not named amp.yaml
+			// or amp.yml, so accepting one here would let validate pass a path
+			// that deploy refuses.
+			name:    "an explicit file with another name is rejected, as amp deploy does",
+			create:  []string{"custom.yaml"},
+			lookup:  "custom.yaml",
+			wantErr: true,
 		},
 		{name: "no manifest present", create: nil, wantErr: true},
 	}

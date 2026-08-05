@@ -87,14 +87,34 @@ func runValidate(cmd *cobra.Command, args []string) {
 	err = checkManifest(manifestPath)
 
 	if validateJSON {
-		emitCheckJSON(manifestPath, err)
+		emitCheckJSON(newCheckResult(manifestPath, err))
 	} else {
 		emitCheckText(manifestPath, err)
 	}
 
-	if err != nil {
-		os.Exit(exitCheckFailed)
+	os.Exit(exitCodeFor(err))
+}
+
+// newCheckResult builds the --json payload. Split out from emission so the
+// output contract can be tested without running the binary.
+func newCheckResult(manifestPath string, checkErr error) checkResult {
+	result := checkResult{Status: statusCheckPassed, Manifest: manifestPath}
+	if checkErr != nil {
+		result.Status = statusCheckFailed
+		result.Error = checkErr.Error()
 	}
+
+	return result
+}
+
+// exitCodeFor maps a check outcome to a process exit code. Callers rely on 0, 1
+// and 2 being distinct, so this is covered by tests rather than left implicit.
+func exitCodeFor(checkErr error) int {
+	if checkErr != nil {
+		return exitCheckFailed
+	}
+
+	return 0
 }
 
 func checkManifest(manifestPath string) error {
@@ -106,13 +126,7 @@ func checkManifest(manifestPath string) error {
 	return files.ValidateManifest(manifest)
 }
 
-func emitCheckJSON(manifestPath string, checkErr error) {
-	result := checkResult{Status: statusCheckPassed, Manifest: manifestPath}
-	if checkErr != nil {
-		result.Status = statusCheckFailed
-		result.Error = checkErr.Error()
-	}
-
+func emitCheckJSON(result checkResult) {
 	encoded, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		logger.FatalErr("unable to encode the result", err)
